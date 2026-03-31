@@ -51,73 +51,73 @@ const hideAuthError = () => {
 
           const ensureSupabaseSession = async () => {
     if (!supabase) {
-        alert("Supabase belum di-setup!");
+        console.error("Supabase belum di-setup!");
         return null;
     }
 
     try {
-        // cek apakah sudah login
-        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        // 1. cek session aktif
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-        if (userErr) {
-            console.error("Supabase getUser error:", userErr);
+        if (sessionError) {
+            console.error("Supabase getSession error:", sessionError);
         }
 
-        if (userData?.user) {
-            supabaseUser = userData.user;
+        if (sessionData?.session?.user) {
+            supabaseUser = sessionData.session.user;
             return supabaseUser;
         }
 
+        // 2. buat akun palsu per username
         const handle = localStorage.getItem('tm_handle') || 'guest';
-const fakeEmail = handle + "@app.local";
-const password = "tm_" + btoa(handle).replace(/=/g, '') + "_2026";
+        const fakeEmail = handle.toLowerCase().trim() + "@app.local";
+        const password = "12345678";
 
-        // coba login dulu
-        let { data, error } = await supabase.auth.signInWithPassword({
+        // 3. coba login dulu
+        const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
             email: fakeEmail,
-            password: password,
+            password: password
         });
 
-        // kalau user belum ada, bikin akun
-        if (error) {
-            console.warn("Supabase login gagal, coba daftar:", error.message);
-
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                email: fakeEmail,
-                password: password,
-            });
-
-            if (signUpError) {
-                console.error("Supabase signup error:", signUpError);
-                alert("Gagal membuat akun Supabase: " + signUpError.message);
-                return null;
-            }
-
-            // login ulang setelah signup
-            const loginRetry = await supabase.auth.signInWithPassword({
-                email: fakeEmail,
-                password: password,
-            });
-
-            if (loginRetry.error) {
-                console.error("Supabase login retry error:", loginRetry.error);
-                alert("Gagal login Supabase setelah daftar: " + loginRetry.error.message);
-                return null;
-            }
-
-            supabaseUser = loginRetry.data.user;
+        if (!loginError && loginData?.user) {
+            supabaseUser = loginData.user;
             return supabaseUser;
         }
 
-        supabaseUser = data.user;
+        console.warn("Supabase login gagal, coba signup:", loginError?.message);
+
+        // 4. kalau gagal login, coba daftar
+        const { error: signUpError } = await supabase.auth.signUp({
+            email: fakeEmail,
+            password: password
+        });
+
+        // 5. kalau error selain "already registered", hentikan
+        if (signUpError && !signUpError.message.toLowerCase().includes("already")) {
+            console.error("Supabase signup error:", signUpError);
+            return null;
+        }
+
+        // 6. login ulang
+        const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+            email: fakeEmail,
+            password: password
+        });
+
+        if (retryError || !retryData?.user) {
+            console.error("Supabase login retry error:", retryError);
+            return null;
+        }
+
+        supabaseUser = retryData.user;
         return supabaseUser;
 
     } catch (err) {
         console.error("SESSION ERROR:", err);
-        alert("Supabase error: " + err.message);
         return null;
     }
 };
+            
 
           let allTasks = [];
           let catFilter = 'All';
@@ -811,8 +811,16 @@ window.closeTaskPreview = () => {
 
                   const sessionUser = await ensureSupabaseSession();
 const ownerUserId = sessionUser?.id;
-                  if (!supabase || !ownerUserId) {
-    alert("Supabase belum siap, cek config!");
+                console.log("SUPABASE SESSION USER:", sessionUser);
+
+if (!supabase) {
+    alert("Supabase belum terhubung.");
+    return;
+}
+
+if (!ownerUserId) {
+    console.error("Supabase user tidak ditemukan.");
+    alert("Session upload belum siap. Coba logout lalu login lagi.");
     return;
 }
 
