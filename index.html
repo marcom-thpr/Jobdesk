@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+  <html lang="id" class="light">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>TaskMaster Pro - Ultimate Edition</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+      <style>
+          body { 
+              font-family: 'Plus Jakarta Sans', sans-serif; 
+              transition: background-color 0.3s, color 0.3s; 
+          }
+          .custom-scroll::-webkit-scrollbar { width: 6px; }
+          .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+          .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+          .dark .custom-scroll::-webkit-scrollbar-thumb { background: #334155; }
+
+          .task-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+          .task-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+
+          .nav-btn.active { 
+              background-color: #2563eb; 
+              color: white; 
+              font-weight: 700; 
+              box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); 
+          }
+
+          @keyframes fadeIn {
+              from { opacity: 0; transform: translateY(10px); }
+              to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+          .hidden { display: none !important; }
+      </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 min-h-screen dark:bg-slate-950 dark:text-slate-100 flex overflow-hidden">
+
+      <!-- Loading Screen -->
+      <div id="loadingOverlay" class="fixed inset-0 z-[200] bg-white dark:bg-slate-950 flex flex-col items-center justify-center">
+          <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p class="font-black text-slate-600 dark:text-slate-400 animate-pulse tracking-widest uppercase text-xs">Menyiapkan Ruang Kerja...</p>
+      </div>
+
+      <!-- Auth Screen -->
+      <div id="authScreen" class="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 hidden">
+          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-[3rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800">
+              <div class="text-center mb-8">
+                  <div class="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-white font-black text-4xl shadow-xl mx-auto mb-6">T</div>
+                  <h2 class="text-3xl font-black tracking-tight">Selamat Datang</h2>
+                  <p class="text-slate-500 text-sm mt-3">Masuk dengan username untuk sinkronisasi cloud</p>
+              </div>
+
+              <form id="authForm" class="space-y-6">
+    <!-- Toggle Login / Register -->
+    <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+        <button type="button" id="tabLogin" class="auth-tab flex-1 py-3 rounded-xl font-black bg-blue-600 text-white">
+            Login
+        </button>
+        <button type="button" id="tabRegister" class="auth-tab flex-1 py-3 rounded-xl font-black text-slate-500">
+            Daftar
+        </button>
+    </div>
+
+    <!-- Username -->
+    <div>
+        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+            Username
+        </label>
+        <input
+            type="text"
+            id="authUsername"
+            required
+            minlength="3"
+            placeholder="Masukkan username..."
+            class="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-blue-500 outline-none transition-all font-bold"
+        >
+    </div>
+
+    <!-- Email (hanya muncul saat daftar) -->
+    <div id="registerEmailWrap" class="hidden">
+        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+            Email Asli
+        </label>
+        <input
+            type="email"
+            id="authEmail"
+            placeholder="Masukkan email..."
+            class="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-blue-500 outline-none transition-all font-bold"
+        >
+    </div>
+
+    <!-- Password -->
+    <div>
+        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+            Password
+        </label>
+        <input
+            type="password"
+            id="authPassword"
+            required
+            minlength="6"
+            placeholder="Masukkan password..."
+            class="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-blue-500 outline-none transition-all font-bold"
+        >
+    </div>
+
+    <!-- Error -->
+    <div id="authError" class="text-red-500 text-xs font-bold text-center hidden p-4 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/20"></div>
+
+    <!-- Submit -->
+    <button
+        type="submit"
+        id="authSubmitBtn"
+        class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all"
+    >
+        Login
+    </button>
+</form>
+              
+          </div>
+      </div>
+
+      <!-- Main Application Wrapper -->
+      <div id="mainApp" class="flex w-full hidden">
+          <!-- Sidebar Navigation -->
+          <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 w-80 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-500 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col">
+              <div class="p-8 flex-1 overflow-y-auto custom-scroll">
+                  <div class="flex items-center gap-4 mb-12">
+                      <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-lg">T</div>
+                      <div>
+                          <h1 class="text-xl font-black tracking-tight">TaskMaster</h1>
+                          <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Workspace Pro</p>
+                      </div>
+                  </div>
+
+                  <nav class="space-y-3">
+                      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 ml-4">Menu Utama</p>
+                      <button data-cat="All" class="nav-btn active w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                          <span class="font-bold">Semua Tugas</span>
+                      </button>
+                      <button data-cat="Work" class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V20a2 2 0 002 2h14a2 2 0 002-2v-6.745z"></path></svg>
+                          <span class="font-bold">Pekerjaan</span>
+                      </button>
+                      <button data-cat="Personal" class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                          <span class="font-bold">Personal</span>
+                      </button>
+
+                      <div class="pt-2">
+                          <button id="btnGallery" class="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h4l2 3h10l-2 7H6L4 8z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 8l2-3h4v3"></path></svg>
+                              <span class="font-bold">Gallery Bukti</span>
+                          </button>
+                      </div>
+                  </nav>
+
+                  <div class="mt-12 space-y-4">
+                      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 ml-4">Statistik</p>
+                      <div class="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-5 border border-slate-100 dark:border-slate-800">
+                          <div class="flex justify-between items-center mb-4">
+                              <span class="text-xs font-bold text-slate-500">Progres Selesai</span>
+                              <span id="progressPercent" class="text-xs font-black text-blue-600">0%</span>
+                          </div>
+                          <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                              <div id="progressBar" class="bg-blue-600 h-full transition-all duration-1000" style="width: 0%"></div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="p-8 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                  <div class="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50">
+                      <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-xs">U</div>
+                      <div class="flex-1 min-w-0">
+                          <p id="usernameDisplay" class="text-sm font-black truncate text-blue-900 dark:text-blue-100">User</p>
+                          <p class="text-[10px] font-bold text-blue-400 uppercase">Cloud Active</p>
+                      </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                      <button id="themeToggle" class="flex items-center justify-center p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                          <svg class="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                      </button>
+                      <button id="logoutBtn" class="flex items-center justify-center p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 transition-all">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                      </button>
+                  </div>
+              </div>
+          </aside>
+
+          <!-- Main Content Area -->
+          <div class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+              <!-- Header -->
+              <header class="p-6 lg:p-10 flex items-center justify-between gap-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 z-40">
+                  <button id="openSidebar" class="lg:hidden p-3 rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                  </button>
+
+                  <div class="relative flex-1 max-w-2xl group">
+                      <input type="text" id="searchInput" placeholder="Cari judul atau deskripsi tugas..." class="w-full pl-14 pr-6 py-4 rounded-3xl outline-none shadow-sm dark:bg-slate-900 border-2 border-transparent focus:border-blue-500 transition-all font-medium">
+                      <svg class="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                  </div>
+
+                  <button id="btnNewTask" class="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-[1.5rem] font-black shadow-xl shadow-blue-500/20 hover:bg-blue-700 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>
+                      <span class="hidden md:block">Tugas Baru</span>
+                  </button>
+              </header>
+
+              <!-- Dynamic List -->
+              <main class="flex-1 overflow-y-auto px-6 lg:px-12 pb-24 custom-scroll">
+                  <div class="max-w-5xl mx-auto py-10">
+                      <!-- Dashboard Summary -->
+                      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                          <div class="p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                              <div class="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 mb-4">
+                                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                              </div>
+                              <h4 class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Tugas</h4>
+                              <p id="statTotal" class="text-3xl font-black">0</p>
+                          </div>
+                          <div class="p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                              <div class="w-12 h-12 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 mb-4">
+                                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                              </div>
+                              <h4 class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Tugas Selesai</h4>
+                              <p id="statDone" class="text-3xl font-black">0</p>
+                          </div>
+                          <div class="p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                              <div class="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 mb-4">
+                                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                              </div>
+                              <h4 class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Sisa Tugas</h4>
+                              <p id="statPending" class="text-3xl font-black">0</p>
+                          </div>
+                      </div>
+
+                      <div class="mb-10 flex items-end justify-between">
+                          <div>
+                              <h2 id="currentCategoryTitle" class="text-4xl font-black tracking-tight mb-2">Semua Tugas</h2>
+                              <p class="text-slate-500 font-medium">Kelola dan atur prioritas pekerjaan harian Anda.</p>
+                          </div>
+                          <div class="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hidden md:flex">
+                              <button onclick="setStatusFilter('All')" class="status-filter px-6 py-2 rounded-xl text-xs font-bold transition-all bg-blue-600 text-white" id="filterAll">Semua</button>
+                              <button onclick="setStatusFilter('Pending')" class="status-filter px-6 py-2 rounded-xl text-xs font-bold transition-all text-slate-500" id="filterPending">Berjalan</button>
+                              <button onclick="setStatusFilter('Completed')" class="status-filter px-6 py-2 rounded-xl text-xs font-bold transition-all text-slate-500" id="filterCompleted">Selesai</button>
+                          </div>
+                      </div>
+
+                      <div id="taskList" class="grid grid-cols-1 gap-5"></div>
+                  </div>
+              </main>
+          </div>
+      </div>
+
+      <!-- Multi-Feature Modal -->
+      <div id="modalTask" class="fixed inset-0 z-[110] flex items-center justify-center p-4 hidden">
+          <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" onclick="closeModal()"></div>
+          <div class="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-[3.5rem] p-10 lg:p-12 shadow-2xl overflow-y-auto max-h-[95vh] border border-white/10">
+              <div class="flex items-center justify-between mb-10">
+                  <div class="flex items-center gap-4">
+                      <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                      </div>
+                      <h3 id="modalHeading" class="text-3xl font-black tracking-tight">Buat Tugas</h3>
+                  </div>
+                  <button onclick="closeModal()" class="p-3 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-2xl transition-all">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  </button>
+              </div>
+
+              <form id="taskForm" class="space-y-6">
+                  <input type="hidden" id="editId">
+
+                  <div>
+                      <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3 ml-1">Judul Pekerjaan</label>
+                      <input type="text" id="taskTitle" required class="w-full px-7 py-5 rounded-[1.5rem] bg-slate-50 dark:bg-slate-800 font-bold outline-none border-2 border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 transition-all text-lg" placeholder="Apa rencana hari ini?">
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3 ml-1">Kategori</label>
+                          <select id="taskCategory" class="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all">
+                              <option value="Work">Pekerjaan</option>
+                              <option value="Personal">Personal</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3 ml-1">Prioritas</label>
+                          <select id="taskPriority" class="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all">
+                              <option value="Low">Rendah</option>
+                              <option value="Medium" selected>Sedang</option>
+                              <option value="High">Tinggi</option>
+                          </select>
+                      </div>
+                  </div>
+
+                  <div>
+                      <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3 ml-1">Batas Waktu</label>
+                      <input type="datetime-local" id="taskDeadline" class="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all">
+                  </div>
+
+                  <div>
+                      <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3 ml-1">Catatan Tambahan</label>
+                      <textarea id="taskDesc" class="w-full px-7 py-5 rounded-[1.5rem] bg-slate-50 dark:bg-slate-800 outline-none min-h-[120px] border-2 border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium" placeholder="Tulis detail atau langkah-langkah..."></textarea>
+                  </div>
+                
+                <div>
+  <label class="text-sm font-bold text-slate-600 dark:text-slate-300 mb-2 block">
+    Penyimpanan (Opsional)
+  </label>
+  <input 
+    type="url" 
+    id="taskStorageLink"
+    placeholder="https://drive.google.com/... atau link folder"
+    class="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+  >
+</div>
+
+                  <div class="pt-6">
+                      <button type="submit" class="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black shadow-xl shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-1 transition-all text-lg">Konfirmasi & Simpan</button>
+                  </div>
+              </form>
+          </div>
+      </div>
+
+      <!-- Modal Bukti Selesai -->
+      <div id="completeModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4 hidden">
+          <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onclick="closeCompleteModal()"></div>
+          <div class="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-[3.5rem] p-10 lg:p-12 shadow-2xl overflow-y-auto max-h-[95vh] border border-white/10">
+              <div class="flex items-center justify-between mb-10">
+                  <div class="flex items-center gap-4">
+                      <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center text-green-600">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                          </svg>
+                      </div>
+                      <h3 class="text-3xl font-black tracking-tight">Selesaikan Tugas</h3>
+                  </div>
+                  <button onclick="closeCompleteModal()" class="p-3 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-2xl transition-all">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                  </button>
+              </div>
+
+              <form id="completeForm" class="space-y-6">
+                  <input type="hidden" id="completeTaskId">
+
+                  <div>
+                      <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3 ml-1">Upload Bukti (1–7 Gambar)</label>
+                      <input type="file" id="completeImages" accept="image/*" multiple class="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 font-bold outline-none border-2 border-transparent focus:border-green-500 transition-all">
+                      <input type="file" id="completeReplaceImage" accept="image/*" class="hidden">
+                      <p class="text-xs text-slate-500 mt-2">Minimal 1 gambar, maksimal 7 gambar. (Masing-masing maksimal 5 MB). Dari preview kamu bisa hapus atau ganti gambar.</p>
+                  </div>
+
+                  <div>
+                      <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3 ml-1">Tanggal Submit</label>
+                      <input type="datetime-local" id="completeDate" class="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 font-bold outline-none border-2 border-transparent focus:border-green-500 transition-all">
+                  </div>
+
+                  <div id="completePreview" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+                
+                <div class="mt-5">
+  <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+    URL Google Drive (opsional)
+  </label>
+  <input
+    type="url"
+    id="completeDriveUrl"
+    placeholder="https://drive.google.com/..."
+    class="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+  >
+  <p class="text-[11px] text-slate-400 mt-2">
+    Bisa isi link folder atau file Google Drive untuk bukti tambahan.
+  </p>
+</div>
+
+                  <div class="pt-6">
+                      <button type="submit" id="completeSubmitBtn" class="w-full py-5 bg-green-600 text-white rounded-[2rem] font-black shadow-xl shadow-green-500/30 hover:bg-green-700 hover:-translate-y-1 transition-all text-lg">
+                          Upload & Selesaikan Tugas
+                      </button>
+                  </div>
+              </form>
+          </div>
+      </div>
+
+      <!-- Gallery Bukti -->
+      <div id="galleryModal" class="fixed inset-0 z-[130] flex items-center justify-center p-4 hidden">
+          <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" onclick="closeGalleryModal()"></div>
+          <div class="relative w-full max-w-5xl bg-white dark:bg-slate-900 rounded-[3.5rem] p-8 lg:p-10 shadow-2xl overflow-y-auto max-h-[95vh] border border-white/10">
+              <div class="flex items-center justify-between mb-8">
+                  <div class="flex items-center gap-4">
+                      <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4-4 4 4 4-4 4 4v4H4v-4z"/>
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16v10H4V6z"/>
+                          </svg>
+                      </div>
+                      <div>
+                          <h3 class="text-3xl font-black tracking-tight">Gallery Bukti</h3>
+                          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Bukti dari tugas yang selesai</p>
+                      </div>
+                  </div>
+                  <button onclick="closeGalleryModal()" class="p-3 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-2xl transition-all">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                  </button>
+              </div>
+
+              <div id="galleryEmptyState" class="hidden py-16 flex flex-col items-center justify-center opacity-60">
+                  <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v2m0 0v10a2 2 0 002 2h10a2 2 0 002-2V9m-2-2h-2m0 0H9m2-4v4m8 0h-4"/>
+                  </svg>
+                  <p class="font-black">Belum ada bukti tugas selesai</p>
+              </div>
+
+              <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+          </div>
+      </div>
+    
+    <!-- Modal Preview Task -->
+<div id="taskPreviewModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="w-full max-w-2xl bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-fade-in">
+    
+    <div class="p-8 border-b border-slate-100 dark:border-slate-800">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.2em] text-blue-500 mb-2">Preview Tugas</p>
+          <h2 class="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Lihat detail lengkap</h2>
+        </div>
+        <button onclick="closeTaskPreview()" class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:scale-105 transition-all">
+          <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="p-8 space-y-8 max-h-[80vh] overflow-y-auto">
+      
+      <div class="flex flex-wrap gap-3">
+        <span id="previewPriorityBadge" class="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-white">Medium</span>
+        <span id="previewCategory" class="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Personal</span>
+        <span id="previewStatus" class="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Completed</span>
+      </div>
+
+      <div>
+        <h3 id="previewTitle" class="text-3xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+          Buat Ai Influencer
+        </h3>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-5">
+        <div class="rounded-3xl border border-slate-200 dark:border-slate-800 p-5 bg-slate-50 dark:bg-slate-900">
+          <p class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Deadline</p>
+          <p id="previewDeadline" class="text-sm font-bold text-slate-800 dark:text-slate-200">tidak ada</p>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 dark:border-slate-800 p-5 bg-slate-50 dark:bg-slate-900">
+          <p class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Tanggal Submit</p>
+          <p id="previewCompletedAt" class="text-sm font-bold text-slate-800 dark:text-slate-200">31 Maret 2026 pukul 04.50</p>
+        </div>
+      </div>
+
+      <div class="rounded-3xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900">
+        <p class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3">Catatan Tambahan</p>
+        <p id="previewDescription" class="text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+          buat karakter, generate, jadi konten di tiktok
+        </p>
+      </div>
+
+      <div id="previewStorageWrap" class="rounded-3xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 hidden">
+        <p class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3">Penyimpanan (Opsional)</p>
+        <a id="previewStorageLink" href="#" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-2 text-sm font-black text-blue-600 hover:text-blue-700 break-all">
+          link drive | folder
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h5m0 0v5m0-5l-10 10"></path>
+          </svg>
+        </a>
+      </div>
+
+      <div id="previewProofSection" class="hidden">
+        <p class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4">Bukti Penyelesaian</p>
+        <div id="previewProofGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-4 pt-2">
+        <button id="previewEditBtn" class="w-full py-4 rounded-2xl bg-blue-600 text-white font-black hover:scale-[1.01] transition-all">
+          Edit Tugas
+        </button>
+        <button id="previewDeleteBtn" class="w-full py-4 rounded-2xl bg-red-500 text-white font-black hover:scale-[1.01] transition-all">
+          Hapus Tugas
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  </body>
+  </html>
